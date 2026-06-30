@@ -478,16 +478,6 @@ function setupAuthForm() {
     });
   }
 
-  // Demo account click handlers
-  const demoTeacherBtn = document.getElementById('btn-demo-teacher');
-
-  if (demoTeacherBtn) {
-    demoTeacherBtn.addEventListener('click', () => {
-      document.getElementById('login-email').value = 'giangvien@doshi.vn';
-      document.getElementById('login-password').value = 'doshi2026';
-      loginForm.dispatchEvent(new Event('submit'));
-    });
-  }
 }
 
 // Log out user
