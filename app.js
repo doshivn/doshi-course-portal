@@ -479,16 +479,7 @@ function setupAuthForm() {
   }
 
   // Demo account click handlers
-  const demoStudentBtn = document.getElementById('btn-demo-student');
   const demoTeacherBtn = document.getElementById('btn-demo-teacher');
-
-  if (demoStudentBtn) {
-    demoStudentBtn.addEventListener('click', () => {
-      document.getElementById('login-email').value = 'hocvien@doshi.vn';
-      document.getElementById('login-password').value = 'doshi2026';
-      loginForm.dispatchEvent(new Event('submit'));
-    });
-  }
 
   if (demoTeacherBtn) {
     demoTeacherBtn.addEventListener('click', () => {
