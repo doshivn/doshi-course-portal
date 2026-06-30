@@ -1,0 +1,1197 @@
+// Application Logic for Doshi Course Portal
+
+// Dynamic state
+let currentUser = null;
+let currentLessonId = 1;
+let completedLessons = [];
+let commentsDb = {}; // Keyed by lessonId, stores array of comment objects
+let offlineRegistrations = []; // Array of registration objects
+let activeSidebarMode = 'online'; // 'online' (Technical), 'management' (Store Management), 'offline' (Offline courses)
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+  initModules();
+  initUsers();
+  checkAuth();
+  initComments();
+  initProgress();
+  initOfflineRegistrations();
+  
+  // Event Listeners
+  setupNavigation();
+  setupAuthForm();
+  setupCourseControls();
+  setupOfflineLandingTabs();
+  setupOfflineBookingModal();
+  
+  // Default Render
+  renderLessonsList();
+  selectLesson(currentLessonId);
+  renderOfflineRegistrations();
+});
+
+// Load/Init mock users and register capability
+function initUsers() {
+  if (!localStorage.getItem('doshi_users')) {
+    localStorage.setItem('doshi_users', JSON.stringify(window.DEFAULT_USERS));
+  }
+}
+
+// Check current user session
+function checkAuth() {
+  const session = localStorage.getItem('doshi_current_user');
+  const userNavInfo = document.getElementById('user-nav-info');
+  const btnNavLogin = document.getElementById('btn-nav-login');
+  
+  if (session) {
+    currentUser = JSON.parse(session);
+    if (userNavInfo) {
+      userNavInfo.querySelector('.user-display-name').textContent = currentUser.name;
+      userNavInfo.querySelector('.user-avatar-circle').textContent = currentUser.avatar || currentUser.name.substring(0, 2).toUpperCase();
+      userNavInfo.style.display = 'flex';
+    }
+    if (btnNavLogin) btnNavLogin.style.display = 'none';
+    
+    // Fill profile info in course view
+    const courseUserAvatar = document.getElementById('course-user-avatar');
+    const courseUserName = document.getElementById('course-user-name');
+    const courseUserRole = document.getElementById('course-user-role');
+    
+    if (courseUserAvatar) courseUserAvatar.textContent = currentUser.avatar || currentUser.name.substring(0, 2).toUpperCase();
+    if (courseUserName) courseUserName.textContent = currentUser.name;
+    if (courseUserRole) {
+      courseUserRole.textContent = currentUser.role === 'instructor' ? 'Giảng Viên' : currentUser.role === 'admin' ? 'Quản Trị Viên' : 'Học Viên';
+    }
+
+    // Auto-fill booking form fields
+    const bookName = document.getElementById('book-name');
+    const bookEmail = document.getElementById('book-email');
+    if (bookName && !bookName.value) bookName.value = currentUser.name;
+    if (bookEmail && !bookEmail.value) bookEmail.value = currentUser.email;
+
+  } else {
+    currentUser = null;
+    if (userNavInfo) userNavInfo.style.display = 'none';
+    if (btnNavLogin) btnNavLogin.style.display = 'block';
+  }
+}
+
+// Load comments from localStorage or defaults
+function initComments() {
+  const savedComments = localStorage.getItem('doshi_course_comments');
+  if (savedComments) {
+    commentsDb = JSON.parse(savedComments);
+  } else {
+    commentsDb = {};
+    window.COURSE_MODULES.forEach(module => {
+      commentsDb[module.id] = [...module.comments];
+    });
+    window.MANAGEMENT_MODULES.forEach(module => {
+      commentsDb[module.id] = [...module.comments];
+    });
+    localStorage.setItem('doshi_course_comments', JSON.stringify(commentsDb));
+  }
+}
+
+// Load progress tracker state
+function initProgress() {
+  const savedProgress = localStorage.getItem('doshi_completed_lessons');
+  if (savedProgress) {
+    completedLessons = JSON.parse(savedProgress);
+  } else {
+    completedLessons = [];
+    localStorage.setItem('doshi_completed_lessons', JSON.stringify(completedLessons));
+  }
+  updateProgressBar();
+}
+
+// Load or Seed Offline Registrations
+function initOfflineRegistrations() {
+  const savedRegs = localStorage.getItem('doshi_offline_regs');
+  if (savedRegs) {
+    offlineRegistrations = JSON.parse(savedRegs);
+  } else {
+    // Default seed for testing
+    offlineRegistrations = [
+      {
+        name: 'Nguyễn Văn Học Viên',
+        phone: '0903427743',
+        email: 'hocvien@doshi.vn',
+        course: 'Thay đế & Khâu đế Giày thể thao',
+        location: 'TP. Hồ Chí Minh',
+        message: 'Tôi đăng ký tham gia lớp K12 khai giảng tháng 7.',
+        status: 'Đang Chờ Xếp Lớp',
+        date: '28/06/2026'
+      }
+    ];
+    localStorage.setItem('doshi_offline_regs', JSON.stringify(offlineRegistrations));
+  }
+}
+
+// Switch between views: landing, login, course
+function showView(viewName) {
+  const views = ['landing', 'login', 'course'];
+  views.forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if (el) {
+      if (v === viewName) {
+        if (v === 'course') {
+          el.style.display = 'grid';
+        } else if (v === 'login') {
+          el.style.display = 'flex';
+        } else {
+          el.style.display = 'block';
+        }
+        el.classList.add('view-active');
+      } else {
+        el.style.display = 'none';
+        el.classList.remove('view-active');
+      }
+    }
+  });
+
+  // Toggle body overflow behavior for course viewer
+  if (viewName === 'course') {
+    document.body.classList.add('course-mode-active');
+  } else {
+    document.body.classList.remove('course-mode-active');
+  }
+
+  // Handle active navigation states
+  const navLinks = document.querySelectorAll('.nav-link');
+  navLinks.forEach(link => {
+    if (link.getAttribute('data-view') === viewName) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+
+  // Update active state of online/offline navbar links
+  const onlineNav = document.getElementById('nav-link-online');
+  const managementNav = document.getElementById('nav-link-management');
+  const offlineNav = document.getElementById('nav-link-offline');
+  
+  if (viewName === 'course') {
+    if (activeSidebarMode === 'online') {
+      if (onlineNav) onlineNav.classList.add('active');
+      if (managementNav) managementNav.classList.remove('active');
+      if (offlineNav) offlineNav.classList.remove('active');
+    } else if (activeSidebarMode === 'management') {
+      if (onlineNav) onlineNav.classList.remove('active');
+      if (managementNav) managementNav.classList.add('active');
+      if (offlineNav) offlineNav.classList.remove('active');
+    } else {
+      if (onlineNav) onlineNav.classList.remove('active');
+      if (managementNav) managementNav.classList.remove('active');
+      if (offlineNav) offlineNav.classList.add('active');
+    }
+  } else if (viewName === 'login') {
+    const redirect = localStorage.getItem('doshi_login_redirect') || 'online';
+    if (redirect === 'management') {
+      if (onlineNav) onlineNav.classList.remove('active');
+      if (managementNav) managementNav.classList.add('active');
+      if (offlineNav) offlineNav.classList.remove('active');
+    } else {
+      if (onlineNav) onlineNav.classList.add('active');
+      if (managementNav) managementNav.classList.remove('active');
+      if (offlineNav) offlineNav.classList.remove('active');
+    }
+  } else {
+    // Landing View handles active link styling natively
+  }
+
+  // Smooth scroll to top of view
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Navigate to Online Course Player (Technical)
+function navigateToOnlineCourse() {
+  if (!currentUser) {
+    localStorage.setItem('doshi_login_redirect', 'online');
+    showView('login');
+  } else {
+    showView('course');
+    activeSidebarMode = 'online';
+    
+    // Select first lesson
+    const firstLesson = window.COURSE_MODULES[0];
+    if (firstLesson) {
+      currentLessonId = firstLesson.id;
+      renderLessonsList();
+      selectLesson(currentLessonId);
+    }
+    
+    const btnOnlineMode = document.getElementById('btn-sidebar-online');
+    const btnMgtMode = document.getElementById('btn-sidebar-management');
+    const btnOfflineMode = document.getElementById('btn-sidebar-offline');
+    if (btnOnlineMode) btnOnlineMode.classList.add('active');
+    if (btnMgtMode) btnMgtMode.classList.remove('active');
+    if (btnOfflineMode) btnOfflineMode.classList.remove('active');
+
+    const sidebarOnlineControls = document.getElementById('sidebar-online-controls');
+    const sidebarOfflineControls = document.getElementById('sidebar-offline-controls');
+    if (sidebarOnlineControls) sidebarOnlineControls.style.display = 'flex';
+    if (sidebarOfflineControls) sidebarOfflineControls.style.display = 'none';
+
+    const subviewOnlinePlayer = document.getElementById('subview-online-player');
+    const subviewOfflineSchedule = document.getElementById('subview-offline-schedule');
+    if (subviewOnlinePlayer) subviewOnlinePlayer.classList.add('active');
+    if (subviewOfflineSchedule) subviewOfflineSchedule.classList.remove('active');
+  }
+}
+
+// Navigate to Store Management Course Player
+function navigateToManagementCourse() {
+  if (!currentUser) {
+    localStorage.setItem('doshi_login_redirect', 'management');
+    showView('login');
+  } else {
+    showView('course');
+    activeSidebarMode = 'management';
+    
+    // Select first lesson
+    const firstLesson = window.MANAGEMENT_MODULES[0];
+    if (firstLesson) {
+      currentLessonId = firstLesson.id;
+      renderLessonsList();
+      selectLesson(currentLessonId);
+    }
+    
+    const btnOnlineMode = document.getElementById('btn-sidebar-online');
+    const btnMgtMode = document.getElementById('btn-sidebar-management');
+    const btnOfflineMode = document.getElementById('btn-sidebar-offline');
+    if (btnOnlineMode) btnOnlineMode.classList.remove('active');
+    if (btnMgtMode) btnMgtMode.classList.add('active');
+    if (btnOfflineMode) btnOfflineMode.classList.remove('active');
+
+    const sidebarOnlineControls = document.getElementById('sidebar-online-controls');
+    const sidebarOfflineControls = document.getElementById('sidebar-offline-controls');
+    if (sidebarOnlineControls) sidebarOnlineControls.style.display = 'flex';
+    if (sidebarOfflineControls) sidebarOfflineControls.style.display = 'none';
+
+    const subviewOnlinePlayer = document.getElementById('subview-online-player');
+    const subviewOfflineSchedule = document.getElementById('subview-offline-schedule');
+    if (subviewOnlinePlayer) subviewOnlinePlayer.classList.add('active');
+    if (subviewOfflineSchedule) subviewOfflineSchedule.classList.remove('active');
+  }
+}
+
+// Navigate to Offline Landing Section
+function navigateToOfflineLanding() {
+  showView('landing');
+  const tabOffline = document.getElementById('btn-tab-offline');
+  if (tabOffline) {
+    tabOffline.click();
+    setTimeout(() => {
+      const section = document.getElementById('section-curriculum');
+      if (section) section.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }
+}
+
+// Event Listeners for Nav clicks
+function setupNavigation() {
+  // Mobile Hamburger Toggle
+  const toggleBtn = document.getElementById('btn-nav-mobile-toggle');
+  const navWrapper = document.querySelector('.nav-links-wrapper');
+  
+  if (toggleBtn && navWrapper) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      navWrapper.classList.toggle('mobile-active');
+    });
+    
+    // Close mobile dropdown menu when any action is clicked inside it
+    navWrapper.addEventListener('click', (e) => {
+      if (e.target.closest('a') || e.target.closest('.btn')) {
+        navWrapper.classList.remove('mobile-active');
+      }
+    });
+
+    // Close when clicking anywhere outside
+    document.addEventListener('click', (e) => {
+      if (!navWrapper.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+        navWrapper.classList.remove('mobile-active');
+      }
+    });
+  }
+
+  // Navigation Links
+  const navLinks = document.querySelectorAll('.nav-link[data-view]');
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const view = link.getAttribute('data-view');
+      showView(view);
+    });
+  });
+
+  // Split Navbar Online, Management & Offline links
+  const onlineNav = document.getElementById('nav-link-online');
+  if (onlineNav) {
+    onlineNav.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOnlineCourse();
+    });
+  }
+
+  const managementNav = document.getElementById('nav-link-management');
+  if (managementNav) {
+    managementNav.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToManagementCourse();
+    });
+  }
+
+  const offlineNav = document.getElementById('nav-link-offline');
+  if (offlineNav) {
+    offlineNav.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOfflineLanding();
+    });
+  }
+
+  // Header "Vào học ngay" button
+  const btnNavLogin = document.getElementById('btn-nav-login');
+  if (btnNavLogin) {
+    btnNavLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOnlineCourse();
+    });
+  }
+
+  // Logo Click -> Landing
+  const logo = document.getElementById('nav-logo');
+  if (logo) {
+    logo.addEventListener('click', (e) => {
+      e.preventDefault();
+      showView('landing');
+    });
+  }
+
+  // CTA Links - Online buttons
+  const onlineCtaBtn = document.getElementById('btn-hero-online');
+  if (onlineCtaBtn) {
+    onlineCtaBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOnlineCourse();
+    });
+  }
+
+  // Handle Landing Page Login triggers (both Technical and Management redirects)
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-online-auth-trigger');
+    if (trigger) {
+      e.preventDefault();
+      const target = trigger.getAttribute('data-redirect') || 'online';
+      if (target === 'management') {
+        navigateToManagementCourse();
+      } else {
+        navigateToOnlineCourse();
+      }
+    }
+  });
+
+  const promoOnlineBtn = document.getElementById('btn-promo-online');
+  if (promoOnlineBtn) {
+    promoOnlineBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOnlineCourse();
+    });
+  }
+
+  const footerOnlineBtn = document.getElementById('btn-footer-online');
+  if (footerOnlineBtn) {
+    footerOnlineBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOnlineCourse();
+    });
+  }
+
+  // Logout Trigger
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleLogout();
+    });
+  }
+
+  const logoutBtnCourse = document.getElementById('course-btn-logout');
+  if (logoutBtnCourse) {
+    logoutBtnCourse.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleLogout();
+    });
+  }
+}
+
+// Authentication Logic
+function setupAuthForm() {
+  const loginForm = document.getElementById('login-form');
+  const loginErrorMsg = document.getElementById('login-error-msg');
+
+  // Handle Login Submission
+  if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      const users = JSON.parse(localStorage.getItem('doshi_users')) || window.DEFAULT_USERS;
+      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+
+      if (user) {
+        // Save session
+        localStorage.setItem('doshi_current_user', JSON.stringify(user));
+        checkAuth();
+        
+        // Redirect check
+        const redirect = localStorage.getItem('doshi_login_redirect') || 'online';
+        localStorage.removeItem('doshi_login_redirect');
+        
+        if (redirect === 'management') {
+          navigateToManagementCourse();
+        } else {
+          navigateToOnlineCourse();
+        }
+        
+        // Reset form
+        loginForm.reset();
+        if (loginErrorMsg) loginErrorMsg.style.display = 'none';
+        
+        // Sync registration list inside workspace
+        renderOfflineRegistrations();
+      } else {
+        if (loginErrorMsg) {
+          loginErrorMsg.textContent = 'Email hoặc mật khẩu không chính xác!';
+          loginErrorMsg.style.display = 'block';
+        }
+      }
+    });
+  }
+
+  // Demo account click handlers
+  const demoStudentBtn = document.getElementById('btn-demo-student');
+  const demoTeacherBtn = document.getElementById('btn-demo-teacher');
+
+  if (demoStudentBtn) {
+    demoStudentBtn.addEventListener('click', () => {
+      document.getElementById('login-email').value = 'hocvien@doshi.vn';
+      document.getElementById('login-password').value = 'doshi2026';
+      loginForm.dispatchEvent(new Event('submit'));
+    });
+  }
+
+  if (demoTeacherBtn) {
+    demoTeacherBtn.addEventListener('click', () => {
+      document.getElementById('login-email').value = 'giangvien@doshi.vn';
+      document.getElementById('login-password').value = 'doshi2026';
+      loginForm.dispatchEvent(new Event('submit'));
+    });
+  }
+}
+
+// Log out user
+function handleLogout() {
+  localStorage.removeItem('doshi_current_user');
+  checkAuth();
+  showView('landing');
+}
+
+// Render the 8 modules in the sidebar list
+// Render modules in the sidebar list (Dynamic between Technical and Store Management)
+function renderLessonsList() {
+  const listContainer = document.getElementById('course-playlist');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '';
+  
+  // Select array based on the active sidebar mode
+  const modules = activeSidebarMode === 'management' ? window.MANAGEMENT_MODULES : window.COURSE_MODULES;
+
+  modules.forEach((module, index) => {
+    const isCompleted = completedLessons.includes(String(module.id));
+    const isActive = String(module.id) === String(currentLessonId);
+    const displayIndex = index + 1;
+    
+    const item = document.createElement('div');
+    item.className = `playlist-item ${isActive ? 'active' : ''}`;
+    item.setAttribute('data-id', module.id);
+    
+    item.innerHTML = `
+      <div class="playlist-checkbox-wrapper">
+        <input type="checkbox" class="lesson-check-box" data-id="${module.id}" ${isCompleted ? 'checked' : ''}>
+      </div>
+      <div class="playlist-info">
+        <span class="playlist-index">Bài ${displayIndex}</span>
+        <h4 class="playlist-title">${module.shortTitle}</h4>
+        <span class="playlist-duration">⏱️ ${module.duration}</span>
+      </div>
+    `;
+    
+    // Select lesson when clicking info
+    item.querySelector('.playlist-info').addEventListener('click', () => {
+      selectLesson(module.id);
+    });
+
+    // Checkbox toggling
+    item.querySelector('.lesson-check-box').addEventListener('change', (e) => {
+      e.stopPropagation();
+      toggleLessonCompleted(module.id, e.target.checked);
+    });
+
+    listContainer.appendChild(item);
+  });
+}
+
+// Select a lesson to view
+function selectLesson(id) {
+  currentLessonId = id;
+  const idStr = String(id);
+  
+  // Find the lesson in either Technical or Management array
+  let lesson = window.COURSE_MODULES.find(m => String(m.id) === idStr);
+  if (!lesson) {
+    lesson = window.MANAGEMENT_MODULES.find(m => String(m.id) === idStr);
+  }
+  if (!lesson) return;
+
+  // Update sidebar active state style
+  const playlistItems = document.querySelectorAll('.playlist-item');
+  playlistItems.forEach(item => {
+    if (String(item.getAttribute('data-id')) === idStr) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  // Update Dynamic Player View elements
+  const videoPlayerWrapper = document.getElementById('course-video-player-wrapper');
+  const videoPlayer = document.getElementById('course-video-player');
+  const textOnlyPlaceholder = document.getElementById('course-text-only-placeholder');
+  const textOnlyContent = document.getElementById('course-text-only-content');
+  const lessonTitle = document.getElementById('course-lesson-title');
+  const lessonDuration = document.getElementById('course-lesson-duration');
+  const lessonDescription = document.getElementById('course-lesson-description');
+  const lessonBullets = document.getElementById('course-lesson-bullets');
+  const attachmentsList = document.getElementById('course-attachments-list');
+  const checkCompletedBtn = document.getElementById('check-current-completed');
+
+  const btnExternalYoutube = document.getElementById('btn-open-external-youtube');
+  if (lesson.videoUrl) {
+    if (videoPlayerWrapper) videoPlayerWrapper.style.display = 'block';
+    if (textOnlyPlaceholder) textOnlyPlaceholder.style.display = 'none';
+    if (videoPlayer) videoPlayer.src = lesson.videoUrl;
+    
+    // Set up external YouTube link fallback
+    if (btnExternalYoutube) {
+      btnExternalYoutube.style.display = 'inline-flex';
+      let watchUrl = lesson.videoUrl;
+      if (lesson.videoUrl.includes('/embed/')) {
+        const parts = lesson.videoUrl.split('/embed/');
+        if (parts.length > 1) {
+          const videoId = parts[1].split('?')[0].split('/')[0];
+          watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        }
+      }
+      btnExternalYoutube.href = watchUrl;
+    }
+  } else {
+    if (videoPlayerWrapper) videoPlayerWrapper.style.display = 'none';
+    if (textOnlyPlaceholder) {
+      textOnlyPlaceholder.style.display = 'block';
+      if (textOnlyContent) textOnlyContent.innerHTML = lesson.richTextContent || '<p>Bài viết đang cập nhật.</p>';
+    }
+    if (videoPlayer) videoPlayer.src = '';
+    if (btnExternalYoutube) btnExternalYoutube.style.display = 'none';
+  }
+  
+  // Determine index in current array list
+  const modules = idStr.startsWith('mgt-') ? window.MANAGEMENT_MODULES : window.COURSE_MODULES;
+  const displayIndex = modules.indexOf(lesson) + 1;
+  
+  if (lessonTitle) lessonTitle.textContent = `Bài ${displayIndex}: ${lesson.title}`;
+  if (lessonDuration) lessonDuration.textContent = `Thời gian: ${lesson.duration}`;
+  if (lessonDescription) lessonDescription.textContent = lesson.description;
+
+  // Render bullets
+  if (lessonBullets) {
+    lessonBullets.innerHTML = '';
+    lesson.bullets.forEach(bullet => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="bullet-check">✓</span> ${bullet}`;
+      lessonBullets.appendChild(li);
+    });
+  }
+
+  // Render files
+  if (attachmentsList) {
+    attachmentsList.innerHTML = '';
+    if (lesson.attachments && lesson.attachments.length > 0) {
+      lesson.attachments.forEach(file => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'attachment-item';
+        item.innerHTML = `
+          <svg class="file-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <div class="attachment-info">
+            <span class="attachment-name">${file.name}</span>
+            <span class="attachment-size">${file.size}</span>
+          </div>
+          <span class="attachment-download-btn">Tải xuống</span>
+        `;
+        
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          alert(`Đang chuẩn bị tải xuống tài liệu: ${file.name}`);
+        });
+        
+        attachmentsList.appendChild(item);
+      });
+    } else {
+      attachmentsList.innerHTML = '<p class="text-muted" style="font-style: italic;">Không có tài liệu đính kèm cho bài này.</p>';
+    }
+  }
+
+  // Sync the big "Mark as completed" button status
+  if (checkCompletedBtn) {
+    const isCompleted = completedLessons.includes(idStr);
+    checkCompletedBtn.checked = isCompleted;
+  }
+
+  // Render Q&A section
+  renderCommentsList(currentLessonId);
+
+  // Instructor video link editor visibility and value pre-fill
+  const instructorEditPanel = document.getElementById('instructor-edit-video-panel');
+  const instructorVideoInput = document.getElementById('instructor-video-url-input');
+  
+  if (currentUser && currentUser.role === 'instructor' && lesson.videoUrl !== undefined && lesson.videoUrl !== null) {
+    if (instructorEditPanel) instructorEditPanel.style.display = 'block';
+    if (instructorVideoInput) instructorVideoInput.value = lesson.videoUrl || '';
+  } else {
+    if (instructorEditPanel) instructorEditPanel.style.display = 'none';
+  }
+}
+
+// Toggle lesson completed status
+function toggleLessonCompleted(id, isChecked) {
+  const idStr = String(id);
+  const index = completedLessons.indexOf(idStr);
+
+  if (isChecked && index === -1) {
+    completedLessons.push(idStr);
+  } else if (!isChecked && index !== -1) {
+    completedLessons.splice(index, 1);
+  }
+
+  localStorage.setItem('doshi_completed_lessons', JSON.stringify(completedLessons));
+
+  // Sync checkboxes in sidebar and player view
+  const sidebarCheck = document.querySelector(`.lesson-check-box[data-id="${idStr}"]`);
+  if (sidebarCheck) sidebarCheck.checked = isChecked;
+
+  if (idStr === String(currentLessonId)) {
+    const mainCheck = document.getElementById('check-current-completed');
+    if (mainCheck) mainCheck.checked = isChecked;
+  }
+
+  // Reload progress bar
+  updateProgressBar();
+}
+
+// Update the progress tracker display bar
+function updateProgressBar() {
+  let total = 0;
+  let completed = 0;
+
+  if (activeSidebarMode === 'online') {
+    total = window.COURSE_MODULES.length;
+    completed = completedLessons.filter(id => !String(id).startsWith('mgt-')).length;
+  } else if (activeSidebarMode === 'management') {
+    total = window.MANAGEMENT_MODULES.length;
+    completed = completedLessons.filter(id => String(id).startsWith('mgt-')).length;
+  } else {
+    return;
+  }
+
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const progressBar = document.getElementById('course-progress-fill');
+  const progressText = document.getElementById('course-progress-text');
+
+  if (progressBar) progressBar.style.width = `${percentage}%`;
+  if (progressText) progressText.textContent = `Hoàn thành: ${completed}/${total} bài học (${percentage}%)`;
+}
+
+// Setup listeners for learning area
+function setupCourseControls() {
+  const checkCompletedBtn = document.getElementById('check-current-completed');
+  if (checkCompletedBtn) {
+    checkCompletedBtn.addEventListener('change', (e) => {
+      toggleLessonCompleted(currentLessonId, e.target.checked);
+    });
+  }
+
+  // Tab switching inside Course view
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remove active classes
+      tabBtns.forEach(b => b.classList.remove('active'));
+      const contents = document.querySelectorAll('.tab-pane');
+      contents.forEach(c => c.classList.remove('active'));
+
+      // Add active to clicked
+      btn.classList.add('active');
+      const paneId = btn.getAttribute('data-tab');
+      const pane = document.getElementById(`tab-pane-${paneId}`);
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  // Handle Posting Comment Q&A
+  const commentForm = document.getElementById('comment-form');
+  if (commentForm) {
+    commentForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const textarea = document.getElementById('comment-input');
+      const text = textarea.value.trim();
+      
+      if (!text) return;
+      if (!currentUser) {
+        alert('Vui lòng đăng nhập để gửi thảo luận.');
+        showView('login');
+        return;
+      }
+
+      // Add comment to Db
+      if (!commentsDb[currentLessonId]) {
+        commentsDb[currentLessonId] = [];
+      }
+
+      const newComment = {
+        author: currentUser.name,
+        avatar: currentUser.avatar || currentUser.name.substring(0,2).toUpperCase(),
+        role: currentUser.role,
+        date: 'Vừa xong',
+        content: text
+      };
+
+      commentsDb[currentLessonId].push(newComment);
+      localStorage.setItem('doshi_course_comments', JSON.stringify(commentsDb));
+
+      // Reset text
+      textarea.value = '';
+
+      // Re-render
+      renderCommentsList(currentLessonId);
+    });
+  }
+
+  // Sidebar Modes Selector (Technical, Management, Offline)
+  const btnOnlineMode = document.getElementById('btn-sidebar-online');
+  const btnMgtMode = document.getElementById('btn-sidebar-management');
+  const btnOfflineMode = document.getElementById('btn-sidebar-offline');
+  
+  const sidebarOnlineControls = document.getElementById('sidebar-online-controls');
+  const sidebarOfflineControls = document.getElementById('sidebar-offline-controls');
+  const subviewOnlinePlayer = document.getElementById('subview-online-player');
+  const subviewOfflineSchedule = document.getElementById('subview-offline-schedule');
+
+  function updateActiveSidebarLayout(mode) {
+    activeSidebarMode = mode;
+    
+    // Manage active buttons style
+    [btnOnlineMode, btnMgtMode, btnOfflineMode].forEach(btn => {
+      if (btn) btn.classList.remove('active');
+    });
+    
+    if (mode === 'online' && btnOnlineMode) btnOnlineMode.classList.add('active');
+    if (mode === 'management' && btnMgtMode) btnMgtMode.classList.add('active');
+    if (mode === 'offline' && btnOfflineMode) btnOfflineMode.classList.add('active');
+
+    // Manage active sidebar controls & player displays
+    if (mode === 'online' || mode === 'management') {
+      if (sidebarOnlineControls) sidebarOnlineControls.style.display = 'flex';
+      if (sidebarOfflineControls) sidebarOfflineControls.style.display = 'none';
+      if (subviewOnlinePlayer) subviewOnlinePlayer.classList.add('active');
+      if (subviewOfflineSchedule) subviewOfflineSchedule.classList.remove('active');
+      
+      // Load first lesson of array list
+      const modules = mode === 'online' ? window.COURSE_MODULES : window.MANAGEMENT_MODULES;
+      currentLessonId = modules[0].id;
+      renderLessonsList();
+      selectLesson(currentLessonId);
+    } else {
+      if (sidebarOnlineControls) sidebarOnlineControls.style.display = 'none';
+      if (sidebarOfflineControls) sidebarOfflineControls.style.display = 'block';
+      if (subviewOnlinePlayer) subviewOnlinePlayer.classList.remove('active');
+      if (subviewOfflineSchedule) subviewOfflineSchedule.classList.add('active');
+      
+      renderOfflineRegistrations();
+    }
+
+    // Sync navbar link highlights
+    const onlineNav = document.getElementById('nav-link-online');
+    const managementNav = document.getElementById('nav-link-management');
+    const offlineNav = document.getElementById('nav-link-offline');
+    if (onlineNav) onlineNav.classList.toggle('active', mode === 'online');
+    if (managementNav) managementNav.classList.toggle('active', mode === 'management');
+    if (offlineNav) offlineNav.classList.toggle('active', mode === 'offline');
+  }
+
+  if (btnOnlineMode) btnOnlineMode.addEventListener('click', () => updateActiveSidebarLayout('online'));
+  if (btnMgtMode) btnMgtMode.addEventListener('click', () => updateActiveSidebarLayout('management'));
+  if (btnOfflineMode) btnOfflineMode.addEventListener('click', () => updateActiveSidebarLayout('offline'));
+
+  // Save Video Link Listener for Instructors
+  const btnSaveVideoUrl = document.getElementById('btn-save-video-url');
+  if (btnSaveVideoUrl) {
+    btnSaveVideoUrl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      let inputVal = document.getElementById('instructor-video-url-input').value.trim();
+      if (!inputVal) {
+        alert('Vui lòng nhập link video!');
+        return;
+      }
+      
+      // Auto convert standard watch/share URLs to embed URLs
+      inputVal = convertToEmbedUrl(inputVal);
+      
+      if (!inputVal.startsWith('http://') && !inputVal.startsWith('https://')) {
+        alert('Đường dẫn video không hợp lệ! Vui lòng nhập link bắt đầu bằng http:// hoặc https://');
+        return;
+      }
+      
+      const idStr = String(currentLessonId);
+      let isMgt = false;
+      let lessonIndex = window.COURSE_MODULES.findIndex(m => String(m.id) === idStr);
+      if (lessonIndex === -1) {
+        lessonIndex = window.MANAGEMENT_MODULES.findIndex(m => String(m.id) === idStr);
+        isMgt = true;
+      }
+      
+      if (lessonIndex !== -1) {
+        if (isMgt) {
+          window.MANAGEMENT_MODULES[lessonIndex].videoUrl = inputVal;
+          localStorage.setItem('doshi_mgt_modules', JSON.stringify(window.MANAGEMENT_MODULES));
+        } else {
+          window.COURSE_MODULES[lessonIndex].videoUrl = inputVal;
+          localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
+        }
+        
+        alert('Đã cập nhật liên kết video thành công!');
+        selectLesson(currentLessonId);
+      }
+    });
+  }
+}
+
+// Render the comments for a specific lesson
+function renderCommentsList(lessonId) {
+  const container = document.getElementById('comments-list');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const list = commentsDb[lessonId] || [];
+
+  if (list.length === 0) {
+    container.innerHTML = '<p class="text-muted" style="text-align: center; padding: 20px; font-style: italic;">Chưa có câu hỏi nào. Hãy là người đầu tiên thảo luận!</p>';
+    return;
+  }
+
+  list.forEach(c => {
+    const item = document.createElement('div');
+    item.className = `comment-item ${c.role === 'instructor' || c.role === 'admin' ? 'instructor-reply' : ''}`;
+    
+    item.innerHTML = `
+      <div class="comment-avatar">${c.avatar}</div>
+      <div class="comment-body">
+        <div class="comment-header">
+          <span class="comment-author">${c.author}</span>
+          ${c.role === 'instructor' ? '<span class="badge badge-red">Giảng Viên</span>' : ''}
+          ${c.role === 'admin' ? '<span class="badge badge-dark">Quản Trị Viên</span>' : ''}
+          <span class="comment-date">${c.date}</span>
+        </div>
+        <div class="comment-content">${c.content}</div>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+
+  // Scroll to bottom of comment area if new comments
+  container.scrollTop = container.scrollHeight;
+}
+
+// Landing Page: Switch tabs between Technical Online, Store Management, and Offline
+function setupOfflineLandingTabs() {
+  const tabBtns = document.querySelectorAll('.landing-tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const type = btn.getAttribute('data-type');
+      const panes = ['online', 'management', 'offline'];
+      panes.forEach(p => {
+        const el = document.getElementById(`pane-${p}`);
+        if (el) {
+          if (p === type) {
+            el.classList.add('active');
+          } else {
+            el.classList.remove('active');
+          }
+        }
+      });
+    });
+  });
+
+  // Hero button "Xem khóa học offline" helper
+  const heroOfflineBtn = document.getElementById('btn-hero-offline');
+  if (heroOfflineBtn) {
+    heroOfflineBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToOfflineLanding();
+    });
+  }
+}
+
+// Consultation Modal controls
+function setupOfflineBookingModal() {
+  const modal = document.getElementById('consultation-modal');
+  const closeBtn = document.getElementById('btn-close-modal');
+  const bookingForm = document.getElementById('offline-booking-form');
+  const courseSelect = document.getElementById('book-course-select');
+
+  // Find all booking triggers on landing and dashboard
+  // Use Event delegation since these can be clicked anywhere
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-book-offline');
+    if (btn) {
+      e.preventDefault();
+      const courseName = btn.getAttribute('data-course') || '';
+      
+      // Pre-select dropdown if course match
+      if (courseSelect && courseName) {
+        // Try exact match or subset
+        for (let i = 0; i < courseSelect.options.length; i++) {
+          if (courseName.includes(courseSelect.options[i].value) || courseSelect.options[i].value.includes(courseName)) {
+            courseSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      // Pre-fill user data if logged in
+      if (currentUser) {
+        const bookName = document.getElementById('book-name');
+        const bookPhone = document.getElementById('book-phone');
+        const bookEmail = document.getElementById('book-email');
+        if (bookName) bookName.value = currentUser.name;
+        if (bookEmail) bookEmail.value = currentUser.email;
+      }
+
+      // Show modal
+      if (modal) modal.classList.add('active');
+    }
+  });
+
+  // Close modal click handlers
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      if (modal) modal.classList.remove('active');
+    });
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    });
+  }
+
+  // Handle Form Submit Consultation Booking
+  if (bookingForm) {
+    bookingForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('book-name').value.trim();
+      const phone = document.getElementById('book-phone').value.trim();
+      const email = document.getElementById('book-email').value.trim();
+      const course = document.getElementById('book-course-select').value;
+      const location = document.getElementById('book-location').value;
+      const msg = document.getElementById('book-msg').value.trim();
+
+      const newReg = {
+        name: name,
+        phone: phone,
+        email: email,
+        course: course,
+        location: location,
+        message: msg,
+        status: 'Đã Đăng Ký Tư Vấn',
+        date: new Date().toLocaleDateString('vi-VN')
+      };
+
+      offlineRegistrations.unshift(newReg);
+      localStorage.setItem('doshi_offline_regs', JSON.stringify(offlineRegistrations));
+
+      alert(`Đăng ký tư vấn khóa học "${course}" thành công!\nChuyên gia Doshi sẽ liên hệ với bạn qua số điện thoại ${phone} sớm nhất.`);
+      
+      // Reset form
+      bookingForm.reset();
+      
+      // Close modal
+      if (modal) modal.classList.remove('active');
+
+      // Update UI in workspace
+      renderOfflineRegistrations();
+    });
+  }
+}
+
+// Render Offline registrations list inside Dashboard Workspace
+function renderOfflineRegistrations() {
+  const container = document.getElementById('offline-registered-list');
+  if (!container) return;
+
+  container.innerHTML = '';
+  
+  // Filter registrations that belong to current logged-in user
+  let myRegs = [];
+  if (currentUser) {
+    myRegs = offlineRegistrations.filter(r => r.email.toLowerCase() === currentUser.email.toLowerCase());
+  } else {
+    myRegs = [...offlineRegistrations];
+  }
+
+  if (myRegs.length === 0) {
+    container.innerHTML = '<p class="text-muted" style="font-style: italic; text-align: center; padding: 20px;">Bạn chưa đăng ký lớp học thực hành offline nào. Hãy đăng ký bên dưới!</p>';
+    return;
+  }
+
+  myRegs.forEach(reg => {
+    const row = document.createElement('div');
+    row.className = 'registered-class-row';
+    
+    // Customize status badges color classes if any
+    let statusClass = 'reg-class-status';
+    
+    row.innerHTML = `
+      <div class="reg-class-info">
+        <h4>Khóa học: ${reg.course}</h4>
+        <span>Đăng ký ngày: ${reg.date} | Cơ sở: ${reg.location}</span>
+      </div>
+      <span class="${statusClass}">${reg.status}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// Handler function for sidebar offline course clicks
+function selectOfflineDetail(courseId) {
+  // Find class row or details depending on clicked item
+  const subview = document.getElementById('subview-offline-schedule');
+  if (!subview) return;
+
+  // Visual cues: highlights
+  const listItems = document.querySelectorAll('#sidebar-offline-controls li');
+  listItems.forEach(item => {
+    item.style.borderLeft = 'none';
+    item.style.backgroundColor = 'rgba(255,255,255,0.02)';
+  });
+
+  // Find clicked item and add left border
+  const event = window.event;
+  if (event && event.currentTarget) {
+    event.currentTarget.style.borderLeft = '2px solid var(--color-gold)';
+    event.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+  }
+
+  // Focus schedule title
+  if (courseId === 'off-all') {
+    renderOfflineRegistrations();
+  } else {
+    const course = window.OFFLINE_COURSES.find(c => c.id === courseId);
+    if (!course) return;
+    
+    // We can render the course curriculum inside the list area or show an alert,
+    // let's show detail information dynamically:
+    const listContainer = document.getElementById('offline-registered-list');
+    if (listContainer) {
+      listContainer.innerHTML = `
+        <div class="registered-class-row" style="flex-direction: column; align-items: flex-start; gap: 10px; border-left-color: var(--color-gold);">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <h4 style="font-size: 1.1rem; color: var(--color-gold);">${course.title} ${course.icon}</h4>
+            <span class="badge badge-gold" style="font-size: 0.8rem;">${course.duration}</span>
+          </div>
+          <p style="font-size: 0.9rem; color: #CBD5E1;">${course.description}</p>
+          <div style="margin-top: 10px; width: 100%;">
+            <strong style="font-size: 0.85rem; color: #FFFFFF; display: block; margin-bottom: 8px;">Nội dung thực hành chi tiết:</strong>
+            <ul style="list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 6px;">
+              ${course.skills.map(skill => `<li style="font-size: 0.82rem; color: #94A3B8; padding-left: 20px; position: relative;"><span style="position: absolute; left: 0; color: var(--color-gold);">✓</span> ${skill}</li>`).join('')}
+            </ul>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 15px; border-top: 1px solid var(--color-dark-border); padding-top: 15px;">
+            <span style="font-size: 0.8rem; color: #94A3B8;">Thời gian đào tạo: ${course.hours}</span>
+            <button class="btn btn-primary btn-sm btn-book-offline" data-course="${course.title}" style="box-shadow: none;">Đăng ký lớp này</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
+// Load/Init custom modules database (allows teachers to edit links)
+function initModules() {
+  const savedCourseModules = localStorage.getItem('doshi_course_modules');
+  if (savedCourseModules) {
+    window.COURSE_MODULES = JSON.parse(savedCourseModules);
+  }
+  const savedMgtModules = localStorage.getItem('doshi_mgt_modules');
+  if (savedMgtModules) {
+    window.MANAGEMENT_MODULES = JSON.parse(savedMgtModules);
+  }
+}
+
+// Helper to convert standard youtube urls to embed links
+function convertToEmbedUrl(url) {
+  url = url.trim();
+  if (url.includes('/embed/')) {
+    return url;
+  }
+  if (url.includes('youtube.com/watch')) {
+    try {
+      const urlObj = new URL(url);
+      const videoId = urlObj.searchParams.get('v');
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+    } catch (e) {}
+  }
+  if (url.includes('youtu.be/')) {
+    const parts = url.split('youtu.be/');
+    if (parts.length > 1) {
+      const videoId = parts[1].split('?')[0].split('/')[0];
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+    }
+  }
+  return url;
+}
+
+// Handler function for sidebar offline course clicks
+if (typeof window !== 'undefined') {
+  window.selectOfflineDetail = selectOfflineDetail;
+}
