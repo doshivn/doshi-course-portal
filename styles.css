@@ -946,12 +946,16 @@ img {
    AUTHENTICATION PAGE
    ========================================================================== */
 .auth-container {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 80px);
   padding: 40px 20px;
   background: radial-gradient(circle at 10% 80%, #FFF5F5 0%, #FFFFFF 80%);
+}
+
+.auth-container.view-active {
+  display: flex;
 }
 
 .auth-card {
@@ -1108,8 +1112,12 @@ img {
   color: var(--color-text-light);
   height: calc(100vh - 80px);
   overflow: hidden;
-  display: grid;
+  display: none;
   grid-template-columns: 320px 1fr;
+}
+
+.course-layout.view-active {
+  display: grid;
 }
 
 /* Sidebar playlist */
@@ -1842,7 +1850,7 @@ img {
   .benefits-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .course-layout {
+  .course-layout.view-active {
     grid-template-columns: 280px 1fr;
   }
 }
@@ -1883,7 +1891,7 @@ img {
     height: auto !important;
     overflow: visible !important;
   }
-  .course-layout {
+  .course-layout.view-active {
     grid-template-columns: 1fr;
     height: auto;
     overflow: visible;

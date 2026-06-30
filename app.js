@@ -69,10 +69,15 @@ function checkAuth() {
     if (bookName && !bookName.value) bookName.value = currentUser.name;
     if (bookEmail && !bookEmail.value) bookEmail.value = currentUser.email;
 
+    // Show course dashboard
+    showView('course');
   } else {
     currentUser = null;
     if (userNavInfo) userNavInfo.style.display = 'none';
     if (btnNavLogin) btnNavLogin.style.display = 'block';
+    
+    // Show landing page
+    showView('landing');
   }
 }
 
