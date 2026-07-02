@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCourseControls();
   setupOfflineLandingTabs();
   setupOfflineBookingModal();
+  setupInstructorUserManagement();
   
   // Default Render
   renderLessonsList();
@@ -99,6 +100,16 @@ function checkAuth() {
     if (bookName && !bookName.value) bookName.value = currentUser.name;
     if (bookEmail && !bookEmail.value) bookEmail.value = currentUser.email;
 
+    // Toggle user management panel visibility
+    const userPanel = document.getElementById('instructor-user-management-panel');
+    const isTeacher = currentUser.role === 'instructor' || currentUser.role === 'admin';
+    if (userPanel) {
+      userPanel.style.display = isTeacher ? 'block' : 'none';
+      if (isTeacher) {
+        renderInstructorUsersList();
+      }
+    }
+
     // Show course dashboard
     showView('course');
   } else {
@@ -106,6 +117,9 @@ function checkAuth() {
     if (userNavInfo) userNavInfo.style.display = 'none';
     if (btnNavLogin) btnNavLogin.style.display = 'block';
     
+    const userPanel = document.getElementById('instructor-user-management-panel');
+    if (userPanel) userPanel.style.display = 'none';
+
     // Show landing page
     showView('landing');
   }
@@ -515,6 +529,10 @@ function handleLogout() {
   localStorage.removeItem('doshi_current_user');
   checkAuth();
   showView('landing');
+  
+  // Hide user panel on logout
+  const userPanel = document.getElementById('instructor-user-management-panel');
+  if (userPanel) userPanel.style.display = 'none';
 }
 
 // Render the 8 modules in the sidebar list
@@ -1335,5 +1353,129 @@ async function loadUsersFromFirestore() {
     }
   } catch (e) {
     console.error("Error loading users from Firestore: ", e);
+  }
+}
+
+// ==========================================================================
+// INSTRUCTOR USER MANAGEMENT FUNCTIONS
+// ==========================================================================
+
+function renderInstructorUsersList() {
+  const container = document.getElementById('instructor-users-list');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const users = window.DEFAULT_USERS || [];
+
+  if (users.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #64748B; font-size: 0.8rem; padding: 10px 0;">Chưa có tài khoản học viên nào.</div>';
+    return;
+  }
+
+  users.forEach(u => {
+    const row = document.createElement('div');
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '1.2fr 1.5fr 1fr auto';
+    row.style.gap = '10px';
+    row.style.fontSize = '0.8rem';
+    row.style.color = '#CBD5E1';
+    row.style.padding = '6px 0';
+    row.style.alignItems = 'center';
+    row.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+
+    const isSystemAccount = u.email === 'admin@doshi.vn' || u.email === 'giangvien@doshi.vn' || u.email === 'hocvien@doshi.vn';
+    const roleText = u.role === 'instructor' ? 'Giảng Viên' : u.role === 'admin' ? 'Quản Trị Viên' : 'Học Viên';
+    const roleBadgeClass = u.role === 'instructor' ? 'badge-red' : u.role === 'admin' ? 'badge-dark' : 'badge-gold';
+    
+    const actionHtml = isSystemAccount 
+      ? '<span style="color: #64748B; font-size: 0.7rem; width: 45px; text-align: center; display: inline-block;">Hệ thống</span>'
+      : `<button type="button" class="btn-delete-user" data-email="${u.email}" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center; width: 45px;" title="Xóa tài khoản này">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>`;
+
+    row.innerHTML = `
+      <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</span>
+      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.email}</span>
+      <span><span class="badge ${roleBadgeClass}" style="font-size: 0.7rem; padding: 2px 6px;">${roleText}</span></span>
+      ${actionHtml}
+    `;
+
+    container.appendChild(row);
+  });
+
+  const deleteBtns = container.querySelectorAll('.btn-delete-user');
+  deleteBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const email = btn.getAttribute('data-email');
+      if (!email) return;
+
+      if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${email}" không?`)) {
+        await deleteUserAccount(email);
+      }
+    });
+  });
+}
+
+async function deleteUserAccount(email) {
+  try {
+    window.DEFAULT_USERS = window.DEFAULT_USERS.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    localStorage.setItem('doshi_users', JSON.stringify(window.DEFAULT_USERS));
+
+    if (db) {
+      await db.collection('users').doc(email.toLowerCase()).delete();
+    }
+    
+    alert(`Đã xóa tài khoản "${email}" thành công!`);
+    renderInstructorUsersList();
+  } catch (e) {
+    console.error("Error deleting user: ", e);
+    alert('Đã xảy ra lỗi khi xóa tài khoản.');
+  }
+}
+
+function setupInstructorUserManagement() {
+  const form = document.getElementById('instructor-create-user-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('new-user-name').value.trim();
+      const email = document.getElementById('new-user-email').value.trim().toLowerCase();
+      const password = document.getElementById('new-user-password').value.trim();
+
+      if (!name || !email || !password) {
+        alert('Vui lòng nhập đầy đủ thông tin!');
+        return;
+      }
+
+      const exists = window.DEFAULT_USERS.some(u => u.email.toLowerCase() === email);
+      if (exists) {
+        alert(`Tài khoản email "${email}" đã tồn tại trên hệ thống!`);
+        return;
+      }
+
+      const newUser = {
+        name,
+        email,
+        password,
+        role: 'student'
+      };
+
+      try {
+        window.DEFAULT_USERS.push(newUser);
+        localStorage.setItem('doshi_users', JSON.stringify(window.DEFAULT_USERS));
+
+        if (db) {
+          await db.collection('users').doc(email).set(newUser);
+        }
+
+        alert(`Đã tạo thành công tài khoản học viên "${name}" (${email})!`);
+        form.reset();
+        renderInstructorUsersList();
+      } catch (err) {
+        console.error("Error creating user: ", err);
+        alert('Đã xảy ra lỗi khi tạo tài khoản học viên.');
+      }
+    });
   }
 }
