@@ -1,5 +1,27 @@
 // Application Logic for Doshi Course Portal
 
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAZtH3lXuu4IWzZg92u0m3HrNQ7pzcy1f4",
+  authDomain: "khoa-hoc-11f6f.firebaseapp.com",
+  projectId: "khoa-hoc-11f6f",
+  storageBucket: "khoa-hoc-11f6f.firebasestorage.app",
+  messagingSenderId: "899259078863",
+  appId: "1:899259078863:web:dcbc7363c1627fba327fba"
+};
+
+let db = null;
+
+function initFirebase() {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    console.log("Firebase Cloud Firestore initialized successfully!");
+  } else {
+    console.warn("Firebase SDK not loaded, falling back to LocalStorage.");
+  }
+}
+
 // Dynamic state
 let currentUser = null;
 let currentLessonId = 1;
@@ -9,7 +31,14 @@ let offlineRegistrations = []; // Array of registration objects
 let activeSidebarMode = 'online'; // 'online' (Technical), 'management' (Store Management), 'offline' (Offline courses)
 
 // Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  initFirebase();
+  
+  // Load data from Firebase Firestore if connected
+  await loadModulesFromFirestore();
+  await loadOfflineRegistrationsFromFirestore();
+  await loadCommentsFromFirestore();
+  
   initModules();
   initUsers();
   checkAuth();
@@ -774,6 +803,13 @@ function setupCourseControls() {
       commentsDb[currentLessonId].push(newComment);
       localStorage.setItem('doshi_course_comments', JSON.stringify(commentsDb));
 
+      // Sync to Firebase Cloud Firestore
+      if (db) {
+        db.collection('comments').doc(String(currentLessonId)).set({
+          list: commentsDb[currentLessonId]
+        }).catch(err => console.error("Error saving comment to Firebase: ", err));
+      }
+
       // Reset text
       textarea.value = '';
 
@@ -870,9 +906,17 @@ function setupCourseControls() {
         if (isMgt) {
           window.MANAGEMENT_MODULES[lessonIndex].videoUrl = inputVal;
           localStorage.setItem('doshi_mgt_modules', JSON.stringify(window.MANAGEMENT_MODULES));
+          // Sync to Firebase Cloud Firestore
+          if (db) {
+            db.collection('mgt_modules').doc(idStr).set(window.MANAGEMENT_MODULES[lessonIndex]).catch(err => console.error("Error saving video url to Firebase: ", err));
+          }
         } else {
           window.COURSE_MODULES[lessonIndex].videoUrl = inputVal;
           localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
+          // Sync to Firebase Cloud Firestore
+          if (db) {
+            db.collection('course_modules').doc(idStr).set(window.COURSE_MODULES[lessonIndex]).catch(err => console.error("Error saving video url to Firebase: ", err));
+          }
         }
         
         alert('Đã cập nhật liên kết video thành công!');
@@ -1018,7 +1062,9 @@ function setupOfflineBookingModal() {
       const location = document.getElementById('book-location').value;
       const msg = document.getElementById('book-msg').value.trim();
 
+      const regId = 'reg-' + Date.now();
       const newReg = {
+        id: regId,
         name: name,
         phone: phone,
         email: email,
@@ -1031,6 +1077,11 @@ function setupOfflineBookingModal() {
 
       offlineRegistrations.unshift(newReg);
       localStorage.setItem('doshi_offline_regs', JSON.stringify(offlineRegistrations));
+
+      // Sync to Firebase Cloud Firestore
+      if (db) {
+        db.collection('offline_bookings').doc(regId).set(newReg).catch(err => console.error("Error saving booking to Firebase: ", err));
+      }
 
       alert(`Đăng ký tư vấn khóa học "${course}" thành công!\nChuyên gia Doshi sẽ liên hệ với bạn qua số điện thoại ${phone} sớm nhất.`);
       
@@ -1180,4 +1231,88 @@ function convertToEmbedUrl(url) {
 // Handler function for sidebar offline course clicks
 if (typeof window !== 'undefined') {
   window.selectOfflineDetail = selectOfflineDetail;
+}
+
+// ==========================================================================
+// FIREBASE DATA LOAD & MERGE HELPERS
+// ==========================================================================
+
+async function loadModulesFromFirestore() {
+  if (!db) return;
+  try {
+    // 1. Technical Course Modules
+    const courseSnapshot = await db.collection('course_modules').get();
+    if (!courseSnapshot.empty) {
+      const list = [];
+      courseSnapshot.forEach(doc => list.push(doc.data()));
+      list.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      window.COURSE_MODULES = list;
+      localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
+    } else {
+      // Seed Firestore if collection is empty
+      for (const m of window.COURSE_MODULES) {
+        await db.collection('course_modules').doc(String(m.id)).set(m);
+      }
+    }
+
+    // 2. Management Course Modules
+    const mgtSnapshot = await db.collection('mgt_modules').get();
+    if (!mgtSnapshot.empty) {
+      const list = [];
+      mgtSnapshot.forEach(doc => list.push(doc.data()));
+      list.sort((a, b) => {
+        const idA = parseInt(String(a.id).replace('mgt-', ''));
+        const idB = parseInt(String(b.id).replace('mgt-', ''));
+        return idA - idB;
+      });
+      window.MANAGEMENT_MODULES = list;
+      localStorage.setItem('doshi_mgt_modules', JSON.stringify(window.MANAGEMENT_MODULES));
+    } else {
+      // Seed Firestore if collection is empty
+      for (const m of window.MANAGEMENT_MODULES) {
+        await db.collection('mgt_modules').doc(String(m.id)).set(m);
+      }
+    }
+  } catch (e) {
+    console.error("Error synchronizing modules with Firestore: ", e);
+  }
+}
+
+async function loadOfflineRegistrationsFromFirestore() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection('offline_bookings').get();
+    if (!snapshot.empty) {
+      const list = [];
+      snapshot.forEach(doc => list.push(doc.data()));
+      list.sort((a, b) => String(b.id).localeCompare(String(a.id)));
+      offlineRegistrations = list;
+      localStorage.setItem('doshi_offline_regs', JSON.stringify(offlineRegistrations));
+    }
+  } catch (e) {
+    console.error("Error loading offline bookings from Firestore: ", e);
+  }
+}
+
+async function loadCommentsFromFirestore() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection('comments').get();
+    if (!snapshot.empty) {
+      const dbObj = {};
+      snapshot.forEach(doc => {
+        dbObj[doc.id] = doc.data().list || [];
+      });
+      commentsDb = dbObj;
+      localStorage.setItem('doshi_course_comments', JSON.stringify(commentsDb));
+    } else {
+      // Seed Firestore with commentsDb
+      const keys = Object.keys(commentsDb);
+      for (const key of keys) {
+        await db.collection('comments').doc(String(key)).set({ list: commentsDb[key] });
+      }
+    }
+  } catch (e) {
+    console.error("Error loading comments from Firestore: ", e);
+  }
 }
