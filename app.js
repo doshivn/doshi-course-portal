@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadModulesFromFirestore();
   await loadOfflineRegistrationsFromFirestore();
   await loadCommentsFromFirestore();
+  await loadUsersFromFirestore();
   
   initModules();
   initUsers();
@@ -1314,5 +1315,25 @@ async function loadCommentsFromFirestore() {
     }
   } catch (e) {
     console.error("Error loading comments from Firestore: ", e);
+  }
+}
+
+async function loadUsersFromFirestore() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection('users').get();
+    if (!snapshot.empty) {
+      const list = [];
+      snapshot.forEach(doc => list.push(doc.data()));
+      window.DEFAULT_USERS = list;
+      localStorage.setItem('doshi_users', JSON.stringify(window.DEFAULT_USERS));
+    } else {
+      // Seed Firestore with DEFAULT_USERS
+      for (const u of window.DEFAULT_USERS) {
+        await db.collection('users').doc(u.email.toLowerCase()).set(u);
+      }
+    }
+  } catch (e) {
+    console.error("Error loading users from Firestore: ", e);
   }
 }
