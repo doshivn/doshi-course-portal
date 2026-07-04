@@ -668,7 +668,19 @@ function selectLesson(id) {
     if (lesson.attachments && lesson.attachments.length > 0) {
       lesson.attachments.forEach(file => {
         const item = document.createElement('a');
-        item.href = '#';
+        if (file.url && file.url !== '#') {
+          item.href = file.url;
+          item.target = '_blank';
+          if (file.url.startsWith('data:')) {
+            item.download = file.name;
+          }
+        } else {
+          item.href = '#';
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert(`Đang chuẩn bị tải xuống tài liệu mẫu: ${file.name}`);
+          });
+        }
         item.className = 'attachment-item';
         item.innerHTML = `
           <svg class="file-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -681,12 +693,6 @@ function selectLesson(id) {
           </div>
           <span class="attachment-download-btn">Tải xuống</span>
         `;
-        
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          alert(`Đang chuẩn bị tải xuống tài liệu: ${file.name}`);
-        });
-        
         attachmentsList.appendChild(item);
       });
     } else {
@@ -710,6 +716,7 @@ function selectLesson(id) {
   if (currentUser && currentUser.role === 'instructor' && lesson.videoUrl !== undefined && lesson.videoUrl !== null) {
     if (instructorEditPanel) instructorEditPanel.style.display = 'block';
     if (instructorVideoInput) instructorVideoInput.value = lesson.videoUrl || '';
+    renderInstructorAttachmentsList(lesson);
   } else {
     if (instructorEditPanel) instructorEditPanel.style.display = 'none';
   }
@@ -1114,6 +1121,9 @@ function setupOfflineBookingModal() {
       renderOfflineRegistrations();
     });
   }
+  
+  // Setup Instructor attachment actions
+  setupInstructorAttachments();
 }
 
 // Render Offline registrations list inside Dashboard Workspace
@@ -1212,7 +1222,15 @@ function selectOfflineDetail(courseId) {
 function initModules() {
   const savedCourseModules = localStorage.getItem('doshi_course_modules');
   if (savedCourseModules) {
-    window.COURSE_MODULES = JSON.parse(savedCourseModules);
+    const list = JSON.parse(savedCourseModules);
+    const hasDuplicateTitles = list.some(m => String(m.title).startsWith('Bài 6:') || String(m.title).startsWith('Bài 7:'));
+    if (list.length === 7 && !hasDuplicateTitles) {
+      window.COURSE_MODULES = list;
+    } else {
+      localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
+    }
+  } else {
+    localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
   }
   const savedMgtModules = localStorage.getItem('doshi_mgt_modules');
   if (savedMgtModules) {
@@ -1261,14 +1279,29 @@ async function loadModulesFromFirestore() {
   try {
     // 1. Technical Course Modules
     const courseSnapshot = await db.collection('course_modules').get();
+    let hasDuplicateTitles = false;
     if (!courseSnapshot.empty) {
+      courseSnapshot.forEach(doc => {
+        const title = doc.data().title || '';
+        if (title.startsWith('Bài 6:') || title.startsWith('Bài 7:')) {
+          hasDuplicateTitles = true;
+        }
+      });
+    }
+
+    if (!courseSnapshot.empty && courseSnapshot.size === 7 && !hasDuplicateTitles) {
       const list = [];
       courseSnapshot.forEach(doc => list.push(doc.data()));
       list.sort((a, b) => parseInt(a.id) - parseInt(b.id));
       window.COURSE_MODULES = list;
       localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
     } else {
-      // Seed Firestore if collection is empty
+      // Overwrite/Seed Firestore if collection is empty or has old curriculum size or duplicate titles
+      if (!courseSnapshot.empty) {
+        const batch = db.batch();
+        courseSnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
       for (const m of window.COURSE_MODULES) {
         await db.collection('course_modules').doc(String(m.id)).set(m);
       }
@@ -1476,6 +1509,212 @@ function setupInstructorUserManagement() {
         console.error("Error creating user: ", err);
         alert('Đã xảy ra lỗi khi tạo tài khoản học viên.');
       }
+    });
+  }
+}
+
+// ==========================================================================
+// INSTRUCTOR ATTACHMENTS MANAGEMENT LOGIC
+// ==========================================================================
+
+function renderInstructorAttachmentsList(lesson) {
+  const container = document.getElementById('instructor-attachments-list');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const attachments = lesson.attachments || [];
+
+  if (attachments.length === 0) {
+    container.innerHTML = '<p style="color: #94A3B8; font-size: 0.8rem; text-align: center; margin: 10px 0; font-style: italic;">Chưa có tài liệu nào.</p>';
+    return;
+  }
+
+  attachments.forEach((att, idx) => {
+    const item = document.createElement('div');
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'space-between';
+    item.style.padding = '6px 8px';
+    item.style.marginBottom = '6px';
+    item.style.backgroundColor = 'rgba(255,255,255,0.03)';
+    item.style.borderRadius = '4px';
+    item.style.border = '1px solid rgba(255,255,255,0.05)';
+    item.style.fontSize = '0.78rem';
+
+    const displayName = att.name.length > 30 ? att.name.substring(0, 27) + '...' : att.name;
+
+    item.innerHTML = `
+      <span style="color: #CBD5E1; font-weight: 500;">${displayName} <span style="color: #64748B; font-size: 0.7rem;">(${att.size})</span></span>
+      <button type="button" class="btn-delete-att" data-index="${idx}" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 0.85rem; padding: 2px 6px; font-weight: bold;" title="Xóa tài liệu">✕</button>
+    `;
+
+    item.querySelector('.btn-delete-att').addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (confirm(`Bạn có chắc muốn xóa tài liệu "${att.name}" không?`)) {
+        lesson.attachments.splice(idx, 1);
+        await saveLessonAttachmentsToFirebase(lesson);
+      }
+    });
+
+    container.appendChild(item);
+  });
+}
+
+async function saveLessonAttachmentsToFirebase(lesson) {
+  // Update local COURSE_MODULES or MANAGEMENT_MODULES
+  const isMgt = String(lesson.id).startsWith('mgt-');
+  if (isMgt) {
+    const targetIdx = window.MANAGEMENT_MODULES.findIndex(m => String(m.id) === String(lesson.id));
+    if (targetIdx !== -1) window.MANAGEMENT_MODULES[targetIdx] = lesson;
+    localStorage.setItem('doshi_mgt_modules', JSON.stringify(window.MANAGEMENT_MODULES));
+  } else {
+    const targetIdx = window.COURSE_MODULES.findIndex(m => String(m.id) === String(lesson.id));
+    if (targetIdx !== -1) window.COURSE_MODULES[targetIdx] = lesson;
+    localStorage.setItem('doshi_course_modules', JSON.stringify(window.COURSE_MODULES));
+  }
+
+  // Render main student view attachments
+  const attachmentsList = document.getElementById('course-attachments-list');
+  if (attachmentsList) {
+    attachmentsList.innerHTML = '';
+    if (lesson.attachments && lesson.attachments.length > 0) {
+      lesson.attachments.forEach(file => {
+        const item = document.createElement('a');
+        if (file.url && file.url !== '#') {
+          item.href = file.url;
+          item.target = '_blank';
+          if (file.url.startsWith('data:')) {
+            item.download = file.name;
+          }
+        } else {
+          item.href = '#';
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert(`Đang chuẩn bị tải xuống tài liệu mẫu: ${file.name}`);
+          });
+        }
+        item.className = 'attachment-item';
+        item.innerHTML = `
+          <svg class="file-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <div class="attachment-info">
+            <span class="attachment-name">${file.name}</span>
+            <span class="attachment-size">${file.size}</span>
+          </div>
+          <span class="attachment-download-btn">Tải xuống</span>
+        `;
+        attachmentsList.appendChild(item);
+      });
+    } else {
+      attachmentsList.innerHTML = '<p class="text-muted" style="font-style: italic;">Không có tài liệu đính kèm cho bài này.</p>';
+    }
+  }
+
+  // Render editor view attachments
+  renderInstructorAttachmentsList(lesson);
+
+  // Save to Firestore
+  if (db) {
+    try {
+      const collName = isMgt ? 'mgt_modules' : 'course_modules';
+      await db.collection(collName).doc(String(lesson.id)).set(lesson);
+    } catch (e) {
+      console.error("Error saving attachments to Firestore: ", e);
+    }
+  }
+}
+
+function setupInstructorAttachments() {
+  const btnAdd = document.getElementById('btn-add-attachment');
+  const fileInput = document.getElementById('instructor-attachment-file-input');
+
+  if (btnAdd) {
+    btnAdd.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById('instructor-attachment-name-input');
+      const urlInput = document.getElementById('instructor-attachment-url-input');
+
+      if (!nameInput || !urlInput) return;
+
+      const name = nameInput.value.trim();
+      const url = urlInput.value.trim();
+
+      if (!name) {
+        alert("Vui lòng nhập tên tài liệu.");
+        return;
+      }
+
+      let lesson = window.COURSE_MODULES.find(m => String(m.id) === String(currentLessonId));
+      if (!lesson) {
+        lesson = window.MANAGEMENT_MODULES.find(m => String(m.id) === String(currentLessonId));
+      }
+
+      if (!lesson) {
+        alert("Không tìm thấy bài học đang chọn.");
+        return;
+      }
+
+      if (!lesson.attachments) lesson.attachments = [];
+      
+      const newAtt = {
+        name: name,
+        size: url ? 'Liên kết' : 'Tài liệu mẫu',
+        url: url || '#'
+      };
+
+      lesson.attachments.push(newAtt);
+      await saveLessonAttachmentsToFirebase(lesson);
+
+      nameInput.value = '';
+      urlInput.value = '';
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 800 * 1024) {
+        alert("Tệp tải lên trực tiếp giới hạn dưới 800KB do đồng bộ Cloud. Với các tài liệu lớn hơn, xin vui lòng tải lên Google Drive rồi dán liên kết Drive của bạn vào ô bên trên để chia sẻ!");
+        fileInput.value = '';
+        return;
+      }
+
+      let lesson = window.COURSE_MODULES.find(m => String(m.id) === String(currentLessonId));
+      if (!lesson) {
+        lesson = window.MANAGEMENT_MODULES.find(m => String(m.id) === String(currentLessonId));
+      }
+
+      if (!lesson) {
+        alert("Không tìm thấy bài học đang chọn.");
+        fileInput.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        if (!lesson.attachments) lesson.attachments = [];
+
+        let sizeStr = '';
+        if (file.size < 1024) sizeStr = `${file.size} B`;
+        else if (file.size < 1024 * 1024) sizeStr = `${(file.size / 1024).toFixed(0)} KB`;
+        else sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+        const newAtt = {
+          name: file.name,
+          size: sizeStr,
+          url: reader.result
+        };
+
+        lesson.attachments.push(newAtt);
+        await saveLessonAttachmentsToFirebase(lesson);
+
+        fileInput.value = '';
+      };
+      reader.readAsDataURL(file);
     });
   }
 }

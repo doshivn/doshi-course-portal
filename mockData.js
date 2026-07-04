@@ -10,16 +10,16 @@ const DEFAULT_USERS = [
 let COURSE_MODULES = [
   {
     id: 1,
-    title: 'Hướng dẫn tự lắp đặt máy giặt giày, tủ sấy giày',
-    shortTitle: 'Tự lắp đặt máy giặt & sấy',
-    duration: '25 phút',
-    videoUrl: 'https://www.youtube.com/embed/Hl2rT_c9g8I',
+    title: '#1 Hướng Dẫn Lắp Đặt Máy Giặt Giày Công Nghiệp Phần 1',
+    shortTitle: 'Lắp đặt máy giặt P1',
+    duration: '15 phút',
+    videoUrl: 'https://www.youtube.com/embed/1k3GbergoQs',
     bullets: [
-      'Hướng dẫn chi tiết từng bước kết nối nguồn nước, nguồn điện và đường ống xả.',
-      'Dễ dàng tự thực hiện tại nhà với các công cụ cơ bản sẵn có.',
-      'Tiết kiệm chi phí thuê thợ lắp đặt và chủ động bảo trì máy về sau.'
+      'Hướng dẫn chuẩn bị mặt bằng lắp đặt, kết nối nguồn nước cấp chịu áp lực.',
+      'Cách đấu nối van cấp và van xả an toàn cho dòng máy giặt chổi Doshi.',
+      'Lưu ý về nguồn điện 220V gia đình và dây tiếp địa chống rò rỉ.'
     ],
-    description: 'Bài học này giúp bạn hiểu rõ nguyên lý lắp đặt dòng máy giặt giày công nghiệp Doshi và tủ sấy giày thông minh. Bạn sẽ biết cách kết nối đường ống cấp nước chịu áp lực, lắp đặt bộ lọc thô đầu vào để giữ cặn bẩn, nối ống thoát nước thải, và kết nối nguồn điện gia đình 220V an toàn chống rò rỉ điện.',
+    description: 'Bài học đầu tiên giúp bạn làm quen với các yêu cầu kỹ thuật cơ bản khi lắp đặt máy giặt giày công nghiệp Doshi. Hướng dẫn chi tiết cách chuẩn bị đầu ren kết nối nước cấp phi 21, phi 27, đấu nối hệ thống lọc thô lọc cặn bẩn trước khi đưa nước vào máy.',
     attachments: [
       { name: 'Sơ đồ lắp đặt kỹ thuật máy giặt Doshi.pdf', size: '2.4 MB' },
       { name: 'Checklist dụng cụ lắp đặt cần thiết.docx', size: '150 KB' }
@@ -43,19 +43,51 @@ let COURSE_MODULES = [
   },
   {
     id: 2,
-    title: 'Hướng dẫn sử dụng máy giặt giày',
-    shortTitle: 'Hướng dẫn sử dụng máy giặt',
-    duration: '35 phút',
-    videoUrl: 'https://www.youtube.com/embed/T1Q0T2VpMnc',
+    title: '#2 Hướng Dẫn Lắp Đặt Máy Giặt Giày Công Nghiệp Phần 2',
+    shortTitle: 'Lắp đặt máy giặt P2',
+    duration: '20 phút',
+    videoUrl: 'https://www.youtube.com/embed/5R_ZS3K8tb8',
     bullets: [
-      'Cách vận hành máy giặt giày tự động an toàn và tối ưu năng suất.',
-      'Lựa chọn các chế độ giặt phù hợp cho từng loại giày (giày vải, thể thao, da).',
-      'Mẹo sử dụng hiệu quả để nâng cao tuổi thọ máy và tiết kiệm hóa chất.'
+      'Chi tiết lắp đặt trục chổi xoay và cân chỉnh lồng giặt đồng tâm.',
+      'Quy trình căn chỉnh chân máy chống rung lắc khi hoạt động tốc độ cao.',
+      'Vận hành thử nghiệm và nghiệm thu đường ống xả thoát sàn.'
     ],
-    description: 'Học cách sử dụng bảng điều khiển của máy giặt giày Doshi. Hướng dẫn cách xếp giày vào lồng giặt sao cho chổi xoay có thể tiếp xúc và làm sạch mọi góc cạnh của giày mà không làm xước hay biến dạng form giày. Hướng dẫn thiết lập lượng nước, tốc độ quay và thời gian giặt tối ưu.',
+    description: 'Tiếp tục quy trình lắp đặt máy giặt giày công nghiệp Doshi. Trong phần 2 này, chuyên gia sẽ hướng dẫn bạn cách cân chỉnh thăng bằng chân máy bằng thước nivo, cố định vị trí máy để chống di chuyển do rung lắc khi vắt, kiểm tra tổng thể động cơ trước khi khởi động chạy thử.',
     attachments: [
-      { name: 'Sổ tay hướng dẫn sử dụng máy giặt giày Doshi v2.pdf', size: '4.8 MB' },
-      { name: 'Bảng cài đặt chế độ giặt nhanh tham khảo.xlsx', size: '85 KB' }
+      { name: 'Hướng dẫn cân chân chống rung máy giặt Doshi.pdf', size: '1.2 MB' }
+    ],
+    comments: [
+      {
+        author: 'Vũ Hữu Phước',
+        avatar: 'HP',
+        role: 'student',
+        date: '5 ngày trước',
+        content: 'Máy giặt này khi vắt có cần bắt vít cố định xuống nền bê tông không ạ?'
+      },
+      {
+        author: 'Chuyên Gia Doshi',
+        avatar: 'CG',
+        role: 'instructor',
+        date: '4 ngày trước',
+        content: 'Chào Phước, bản thân máy giặt giày Doshi đã có khối lượng lớn và chân đế cao su giảm chấn rất tốt. Em chỉ cần tăng chỉnh 4 chân ốc cho máy thật thăng bằng và chạm đều xuống sàn cứng là được, không cần khoan bắt vít xuống sàn nhé.'
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: '#3 Hướng Dẫn Sử Dụng Máy Giặt Giày Công Nghiệp',
+    shortTitle: 'Sử dụng máy giặt giày',
+    duration: '35 phút',
+    videoUrl: 'https://www.youtube.com/embed/yYUSIXhqaJI',
+    bullets: [
+      'Cách sắp xếp giày vào lồng giặt tối ưu hóa hiệu quả chổi quét.',
+      'Lựa chọn dung dịch vệ sinh và định lượng nước giặt phù hợp.',
+      'Cài đặt các chu trình giặt tự động trên bảng điều khiển điện tử.'
+    ],
+    description: 'Học cách vận hành bảng điều khiển thông minh của máy giặt giày Doshi. Bài học hướng dẫn chi tiết phương pháp xếp giày (xoay gót hoặc xoay mũi vào chổi), cách điều chỉnh lượng nước phù hợp với lượng giày thực tế, và mẹo sử dụng hóa chất trung tính để bảo vệ chất liệu vải mesh của giày.',
+    attachments: [
+      { name: 'Cẩm nang vận hành máy giặt giày Doshi.pdf', size: '3.5 MB' },
+      { name: 'Bảng tỷ lệ pha hóa chất giặt giày.xlsx', size: '90 KB' }
     ],
     comments: [
       {
@@ -75,17 +107,17 @@ let COURSE_MODULES = [
     ]
   },
   {
-    id: 3,
-    title: 'Hướng dẫn sử dụng tủ sấy giày',
-    shortTitle: 'Hướng dẫn sử dụng tủ sấy',
+    id: 4,
+    title: '#4 Hướng Dẫn Sử Dụng Và Cài Đặt Tủ Sấy Giày Công Nghiệp',
+    shortTitle: 'Sử dụng tủ sấy giày',
     duration: '30 phút',
-    videoUrl: 'https://www.youtube.com/embed/3u_V-WzK9E4',
+    videoUrl: 'https://www.youtube.com/embed/1Pdz5NOK75o',
     bullets: [
-      'Cách vận hành tủ sấy tuần hoàn nhiệt đối lưu thông minh.',
-      'Cài đặt thời gian sấy và dải nhiệt độ phù hợp tránh làm hỏng keo giày.',
-      'Quy trình bảo quản và vệ sinh định kỳ tủ sấy giày luôn sạch sẽ.'
+      'Cách xếp giày lên các giá treo nhiệt tuần hoàn đối lưu.',
+      'Cài đặt nhiệt độ sấy an toàn (40°C - 50°C) bảo vệ keo dán giày.',
+      'Quy trình vệ sinh khay lọc bụi vải định kỳ của tủ sấy.'
     ],
-    description: 'Tủ sấy giày Doshi sử dụng công nghệ sấy tuần hoàn gió nóng nhiệt độ thấp giúp làm khô giày từ trong ra ngoài. Bài học này sẽ hướng dẫn bạn cài đặt nhiệt độ tối ưu (thường từ 40°C - 50°C tùy chất liệu) để không ảnh hưởng đến lớp keo dán của giày thể thao, cách bố trí giày trên các giá treo để luồng khí nóng lưu thông tốt nhất.',
+    description: 'Học cách vận hành tủ sấy tuần hoàn gió nóng nhiệt độ thấp giúp làm khô giày từ trong ra ngoài. Bài học này sẽ hướng dẫn bạn cài đặt nhiệt độ tối ưu (thường từ 40°C - 50°C tùy chất liệu) để không ảnh hưởng đến lớp keo dán của giày thể thao, cách bố trí giày trên các giá treo để luồng khí nóng lưu thông tốt nhất.',
     attachments: [
       { name: 'Hướng dẫn vận hành tủ sấy tuần hoàn Doshi.pdf', size: '1.9 MB' }
     ],
@@ -107,82 +139,17 @@ let COURSE_MODULES = [
     ]
   },
   {
-    id: 4,
-    title: 'Hướng dẫn vệ sinh giày cơ bản (Bao gồm sử dụng các loại nước giặt giày)',
-    shortTitle: 'Vệ sinh giày cơ bản',
-    duration: '45 phút',
-    videoUrl: 'https://www.youtube.com/embed/o2_N5wQyP-U',
-    bullets: [
-      'Quy trình vệ sinh giày thể thao vải, mesh, canvas cơ bản.',
-      'Giới thiệu công dụng các loại nước giặt, dung dịch tạo bọt chuyên dụng.',
-      'Cách sử dụng nước tẩy, bàn chải lông mềm/cứng hiệu quả và an toàn.'
-    ],
-    description: 'Hướng dẫn quy trình 5 bước vệ sinh giày cơ bản: Gỡ dây và lót giày, xả đất thô, đánh sạch đế và cạnh giày bằng bàn chải cứng, giặt sạch thân giày bằng dung dịch bọt và bàn chải mềm, cuối cùng là xả nước và vắt ráo. Giới thiệu các hóa chất tẩy rửa an toàn cho vải dệt và mesh.',
-    attachments: [
-      { name: 'Quy trình vệ sinh giày cơ bản 5 bước.pdf', size: '850 KB' },
-      { name: 'Danh sách hóa chất vệ sinh giày khuyên dùng.pdf', size: '600 KB' }
-    ],
-    comments: [
-      {
-        author: 'Nguyễn Văn Định',
-        avatar: 'VĐ',
-        role: 'student',
-        date: '1 tuần trước',
-        content: 'Có nên dùng nước rửa chén hoặc xà phòng Omo giặt giày Mesh trắng không thầy?'
-      },
-      {
-        author: 'Chuyên Gia Doshi',
-        avatar: 'CG',
-        role: 'instructor',
-        date: '1 tuần trước',
-        content: 'Không nên em nhé. Omo hoặc nước rửa chén có tính kiềm rất cao, dễ làm ố vàng giày trắng sau khi phơi/sấy và làm cứng sợi mesh. Nên dùng dung dịch trung tính chuyên dụng như Crep Protect, Jason Markk hoặc nước giặt Doshi Neutral nhé.'
-      }
-    ]
-  },
-  {
     id: 5,
-    title: 'Hướng dẫn vệ sinh giày chuyên sâu',
-    shortTitle: 'Vệ sinh giày chuyên sâu',
-    duration: '50 phút',
-    videoUrl: 'https://www.youtube.com/embed/9m_Jd14n_bA',
-    bullets: [
-      'Phương pháp xử lý các vết bẩn cứng đầu (như dầu mỡ, mực, kẹo cao su, nấm mốc).',
-      'Kỹ thuật vệ sinh giày da lộn, da nubuck, giày luxury nhạy cảm bằng tay.',
-      'Mẹo làm sạch sâu kẽ chỉ, phục hồi form giày ban đầu bằng shoe tree.'
-    ],
-    description: 'Bài học nâng cao dành cho thợ kỹ thuật chính. Hướng dẫn cách xử lý các vết ố dầu mỡ cứng đầu bằng cồn isopropyl hoặc dung dịch tách dầu, làm sạch các vết mốc sâu trong sợi vải. Đặc biệt là quy trình spa giày hiệu Hermes, Gucci, Yeezy với chất liệu da lộn nhạy cảm bằng bàn chải lông heo và gôm tẩy chuyên dụng.',
-    attachments: [
-      { name: 'Cẩm nang spa giày hiệu Luxury & Da lộn.pdf', size: '3.1 MB' }
-    ],
-    comments: [
-      {
-        author: 'Hoàng Quốc Việt',
-        avatar: 'QV',
-        role: 'student',
-        date: '1 tuần trước',
-        content: 'Giày da lộn sau khi giặt xong bị cứng ráp bề mặt thì xử lý thế nào ạ?'
-      },
-      {
-        author: 'Chuyên Gia Doshi',
-        avatar: 'CG',
-        role: 'instructor',
-        date: '1 tuần trước',
-        content: 'Da lộn sau khi khô thường bị bết lông làm cứng da. Em dùng bàn chải chuyên dụng cho da lộn (hoặc bàn chải đồng/bàn chải cao su) chải nhẹ nhàng theo một hướng để dựng lại sợi lông, da sẽ mềm mại như cũ nhé.'
-      }
-    ]
-  },
-  {
-    id: 6,
-    title: 'Hướng dẫn quy trình từ giặt - vắt giày - sấy giày',
-    shortTitle: 'Quy trình Giặt - Vắt - Sấy',
+    title: '#5 Hướng Dẫn Quy Trình Giặt Giày - Vắt Giày - Sấy Giày',
+    shortTitle: 'Quy trình Giặt-Vắt-Sấy',
     duration: '30 phút',
-    videoUrl: 'https://www.youtube.com/embed/R9xH_Z2lM8I',
+    videoUrl: 'https://www.youtube.com/embed/uMbeF-eeyNE',
     bullets: [
-      'Quy trình phối hợp 3 bước tiêu chuẩn khép kín trong tiệm giặt giày.',
-      'Tối ưu hóa thời gian xử lý đơn hàng để trả giày cho khách trong ngày.',
-      'Kỹ thuật vắt ráo nước bằng lồng vắt ly tâm giúp giày không bị méo form.'
+      'Quy trình 3 bước khép kín tối ưu năng suất lao động tiệm giặt.',
+      'Phương pháp vắt ly tâm dùng túi chống sốc bảo vệ form giày.',
+      'Kiểm tra chất lượng đầu ra (QC) và đóng gói giao cho khách.'
     ],
-    description: 'Quy trình vận hành tối ưu năng suất tại cửa hàng. Bạn sẽ học cách phân bổ công việc: nhận giày -> giặt lồng chổi -> vắt ly tâm dùng túi chống sốc chuyên dụng -> sấy khô tuần hoàn -> kiểm tra chất lượng (QC) -> đóng gói. Cách sử dụng lồng vắt ly tâm tốc độ cao giúp loại bỏ 80% lượng nước trong giày chỉ trong 1 phút.',
+    description: 'Bài học tổng hợp quy trình vận hành khép kín tại cửa hàng Doshi. Bạn sẽ học cách phân bổ công việc từ khâu nhận giày, xử lý giặt lồng chổi quét, chuyển sang máy vắt ly tâm để loại bỏ nước thừa trước khi đưa vào tủ sấy tuần hoàn gió nóng. Đây là bí quyết giúp tối ưu hóa thời gian xử lý đơn hàng.',
     attachments: [
       { name: 'Sơ đồ luồng công việc xưởng spa giày Doshi.pdf', size: '1.5 MB' },
       { name: 'Biểu mẫu đánh giá chất lượng đầu ra QC.pdf', size: '340 KB' }
@@ -205,37 +172,34 @@ let COURSE_MODULES = [
     ]
   },
   {
-    id: 7,
-    title: 'Hướng dẫn sử dụng tủ tẩy ố UV',
-    shortTitle: 'Sử dụng tủ tẩy ố UV',
-    duration: '40 phút',
-    videoUrl: 'https://www.youtube.com/embed/g_YcKz-c640',
+    id: 6,
+    title: 'Cách vệ sinh giày chuyên Sâu',
+    shortTitle: 'Vệ sinh giày chuyên Sâu',
+    duration: 'Coming Soon',
+    videoUrl: '',
     bullets: [
-      'Cơ chế hóa học tẩy ố vàng trên đế cao su bằng ánh sáng UV và kem Sole Bright.',
-      'Hướng dẫn vận hành tủ tẩy ố UV Doshi an toàn, tiết kiệm điện.',
-      'Những lưu ý quan trọng để tránh làm giòn đế hoặc biến màu nhựa trong quá trình tẩy.'
+      'Nội dung đang được cập nhật.',
+      'Bài học sẽ sớm ra mắt trong thời gian tới.'
     ],
-    description: 'Tẩy ố vàng đế cao su (oxidized soles) là dịch vụ có biên lợi nhuận cao nhất trong spa giày. Bài học này hướng dẫn bạn bôi kem tẩy ố (chứa H2O2 nồng độ cao), bọc màng co PE giữ ẩm, và đặt vào tủ chiếu tia UV Doshi với thời gian từ 2 - 4 tiếng. Học cách kiểm soát nhiệt độ trong tủ UV tránh làm chảy keo giày.',
-    attachments: [
-      { name: 'Quy trình tẩy ố vàng đế giày chuyên nghiệp.pdf', size: '2.2 MB' },
-      { name: 'Lưu ý an toàn sức khỏe khi tiếp xúc tia cực tím UV.pdf', size: '420 KB' }
+    description: 'Nội dung bài học đang được biên soạn. Vui lòng quay lại sau.',
+    richTextContent: '<div style="text-align: center; padding: 50px 20px;"><h2 style="color: var(--color-gold); margin-bottom: 15px;">Coming Soon</h2><p style="color: #94A3B8; font-size: 1.1rem;">Bài học đang được biên soạn và sẽ sớm ra mắt trong thời gian tới.</p></div>',
+    attachments: [],
+    comments: []
+  },
+  {
+    id: 7,
+    title: 'Cách sử dụng tủ tẩy ố giày UV',
+    shortTitle: 'Sử dụng tủ tẩy ố UV',
+    duration: 'Coming Soon',
+    videoUrl: '',
+    bullets: [
+      'Nội dung đang được cập nhật.',
+      'Bài học sẽ sớm ra mắt trong thời gian tới.'
     ],
-    comments: [
-      {
-        author: 'Trần Văn Sang',
-        avatar: 'TS',
-        role: 'student',
-        date: '2 tuần trước',
-        content: 'Tủ UV Doshi này tẩy được bao nhiêu đôi cùng lúc thế ạ?'
-      },
-      {
-        author: 'Chuyên Gia Doshi',
-        avatar: 'CG',
-        role: 'instructor',
-        date: '2 tuần trước',
-        content: 'Tủ tẩy ố UV Doshi của chúng ta có 3 tầng khay inox thông minh, mỗi tầng đặt được từ 4 - 6 đôi tùy kích cỡ, tổng công suất tối đa lên đến 18 đôi một lúc em nhé. Đèn UV được bố trí đa hướng giúp chiếu đều toàn bộ đế.'
-      }
-    ]
+    description: 'Nội dung bài học đang được biên soạn. Vui lòng quay lại sau.',
+    richTextContent: '<div style="text-align: center; padding: 50px 20px;"><h2 style="color: var(--color-gold); margin-bottom: 15px;">Coming Soon</h2><p style="color: #94A3B8; font-size: 1.1rem;">Bài học đang được biên soạn và sẽ sớm ra mắt trong thời gian tới.</p></div>',
+    attachments: [],
+    comments: []
   }
 ];
 
